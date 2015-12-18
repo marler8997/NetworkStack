@@ -1,0 +1,16 @@
+*~
+*.o
+*.obj
+*.a
+*.lib
+
+*.sdf
+*.suo
+*.user
+*.opensdf
+
+obj/
+lib/
+bin/
+Debug/
+Release/

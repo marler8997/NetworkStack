@@ -1,0 +1,31 @@
+
+
+
+-------------------------------------------------------
+Things I Don't Like
+-------------------------------------------------------
+
+Initializing Modules
+The tcpip_init function takes a callback that is called when it is done.
+I'm not sure I like this, I don't see any real advantages.
+The disadvantage is that it increases memory on the program stack (may or may not be good),
+also it prevents creating a custom interface from the caller of tcpip_init and the handler
+without resorting to global data. For example, if you want to call tcpip_init from the main
+function and want the handler to return a return code, you will need to keep track of the return
+code in a global variable (instead of just having the handler return the code).
+
+there should be a blocking version of initializing modules
+i.e. void tcpip_init_block();
+
+
+
+tcp_new
+There should be a way to create specific tcp pcbs.  Adding a function like
+tcp_new_listener should remedy this.
+
+mbox
+The size of the mbox is passed in before the mbox type is allocated.
+The sys_arch should be able to define the function to allocate the
+memory for the mailbox and that function should also have the size of the mbox.
+
+In general, allocating the custom types should be customizable.

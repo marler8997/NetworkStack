@@ -1,0 +1,193 @@
+
+
+-------------------------------------------------------
+12/18/205 Shared Memory
+-------------------------------------------------------
+For most operating systems, the network stack will be running in
+a different context than the application.  The different context implies that
+it will be in a difference process with it's own memory MMC lookup table.
+
+That means that the network stack can't access the applications memory.
+Instead of having to worry about copying memory from the application to the stack,
+there should be a way for the application to allocate memory from the network stack.
+
+
+pbuf* tcp_alloc_send_data_timeout(u32_t size, u32_t timeout);
+// The timeout indicates how long the application should block until
+// the tcp window has memory available.
+
+
+
+-------------------------------------------------------
+12/18/205 OS Internal Network
+-------------------------------------------------------
+
+The Operating System should provide more internal networking support.
+The network stack should be a "plug" into the operating system's internal network.
+It's responsible for IO between the IP network interfaces.
+
+TCP is an example of a stream interface, and UDP is an example of a chunked stream.
+The OS network stack should support these high level communication protocols between
+processes and threads and so on.
+
+Instead of an application creating a tcp socket, it could create a stream plug into the
+internal OS network.  Then any other process/thread should communicate with that application
+without having to go through the tcp stack.
+
+
+
+-------------------------------------------------------
+12/11/2015 General Networking
+-------------------------------------------------------
+I've been reading about the lwIP network stack and I like alot of the ideas.
+I think however, that the architecture and api's can be improved upon by
+making them more useful for a generic network stack without hurting performance.
+
+How should code call into the stack?
+Maybe some of the stack should be built into the app as static libraries?
+
+---------------------
+Think about all the entry points into the stack.
+---------------------
+  - An ethernet network interface could get udp packet.
+  - An application could send a udp packet
+  - An application could open a file.
+Maybe an application is just another network interface?
+Each network interface has the ability to operate on the network stack.
+
+We should come up with another name, let's call every network stack
+io component a "plug".  So any time an application wants to use the
+network stack, it has to "plug into it".  Every network interface is
+also a "plug".
+
+The network stack could be system wide or it could be process specific as well.
+
+You could have one network stack that runs system wide, and each process could
+have it's own network stack, and the network stacks could plug into each other.
+
+What characteristics will a plug have?
+
+  struct plug {
+    plug_type type; // ip transport?  
+    ...
+  };
+
+  void plugin(struct network_stack* stack, struct plug* plug);
+
+You could create new netork stacks:
+
+  void init_network_stack(network_stack* stack);
+
+Or you could get the system network stack;
+
+  network_stack* get_system_network_stack();
+
+You can get the plugs
+
+  int get_plugs(struct network_stack* stack, struct plug* plugs, u off, u len);
+  
+You can have compile time support protocols, and also
+runtime supported protocols...why not!
+
+A good excercise would be to use tcp as a compile-time supported
+protocol and a runtime-supported protocol.
+
+Instead of network stack, let's use a new name.
+network_hub?
+network_switch?
+
+The network_whatever could be used for IPC.
+You could create a network_whatever in one process, and
+then open that network_whatever in another process.
+Then each app plugs into the network_whatever, and can
+open raw channels to each other.
+
+  network_stack* get_network_stack_by_name(string name);
+  name_plug : plug {
+   string name;
+  }
+
+  // Example
+  network_stack* stack = get_network_stack_by_name("my_stack");
+  name_plug plug;
+  plug.name = "my_name";
+  plugin(stack, &plug);
+  
+  // Other Process
+  network_stack* stack = get_network_stack_by_name("my_stack");
+  name_plug plug;
+  plug.name = "my_name";
+  waitforplug(&plug);
+  connect(&plug);
+
+
+
+
+
+
+
+
+
+---------------------
+
+
+
+I'd like to go through some use cases to help design a very good api.
+
+
+Maybe file io should be accessible through the network stack?
+The file system would just be another network interface.
+You could use the "stream api" protocol to send/receive data to files.
+
+
+UseCase: get network interfaces
+
+
+
+UseCase: netcat
+
+tcp_connection conn;
+conn.localIP
+
+
+
+-------------------------------------------------------
+12/11/2015 Another API for Networking
+-------------------------------------------------------
+There should be another interface to hook into the networking stack.
+
+A callback interface.  Some way to inject a function callback along with an ip address/port filter.
+
+IP/Port Filter
+
+List {
+    ip address
+    address mask
+}
+
+List {
+    port number
+    port number mask
+}
+
+
+void (*UdpRecvHandler)(sockaddr* from);
+
+
+You should be able to install these callbacks with certain characteristics.
+
+1. Are you consuming the packets, or just monitoring them?
+   Packets can only be consumed by one callback.
+   You could configure your callback to consume the packets.  Maybe the callback could return a value that indicates whether or not the packet was consumed?
+
+2. Do you want to allow other callbacks to receive this packet?  This is mostly for security. To prevent other callbacks from "snooping" on your packets, you could use this to prevent that.
+
+How to handle TCP?
+
+The TcpAcceptHandler will be very similar to the UdpRecvHandler. 
+
+void (*TcpAcceptHandler)(sockaddr* from);
+
+The next question is how do you handle communication.
+
+I will have to evaluate the various use cases (server/client) and determine the best api for this.
